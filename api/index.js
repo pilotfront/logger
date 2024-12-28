@@ -10,8 +10,8 @@ const supabase = createClient(
 
 // Initialize Razorpay client with your Razorpay API key and secret
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,  // Razorpay key ID from environment variables
-  key_secret: process.env.RAZORPAY_KEY_SECRET,  // Razorpay secret key from environment variables
+  key_id: 'rzp_test_bk8fP9s1DQe1g9',   // Razorpay key ID
+  key_secret: 'ugllIfJZdHueJas3hWAaTy83',  // Razorpay secret key
 });
 
 module.exports = async (req, res) => {
