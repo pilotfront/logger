@@ -1,4 +1,4 @@
-require('dotenv').config();  // Load environment variables from .env file
+require('dotenv').config();  // Optional, if you're running locally and using .env file
 
 const express = require('express');
 const cors = require('cors');
@@ -19,8 +19,8 @@ app.use(cors({
 app.use(express.json());
 
 // Ensure Supabase credentials are available in environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VERCEL_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.VERCEL_SUPABASE_KEY;
 const RAZORPAY_KEY_ID = 'rzp_test_bk8fP9s1DQe1g9';  // Your Razorpay key ID
 const RAZORPAY_KEY_SECRET = 'ugllIfJZdHueJas3hWAaTy83';  // Your Razorpay key secret
 
