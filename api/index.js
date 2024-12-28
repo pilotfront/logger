@@ -16,10 +16,15 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
+  methods: ['GET', 'POST', 'OPTIONS'], // Allow OPTIONS as well
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
 };
 
 app.use(cors(corsOptions));  // Enable CORS with restricted domains
 app.use(bodyParser.json());  // Parse JSON body
+
+// Preflight OPTIONS request handler
+app.options('*', cors(corsOptions));  // Handle preflight requests
 
 // Supabase Configuration (replace with environment variables in Vercel)
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -72,13 +77,11 @@ app.post('/api/index', async (req, res) => {
     }
 
     if (action === 'payment') {
-      // Process Razorpay Payment
       const { amount, currency, user_id } = req.body;
       if (!amount || !currency || !user_id) {
         return res.status(400).json({ error: 'Amount, currency, and user_id are required.' });
       }
 
-      // Create Razorpay order
       const orderOptions = {
         amount: amount * 100, // Razorpay expects amount in the smallest currency unit (paise)
         currency: currency,
