@@ -1,3 +1,5 @@
+require('dotenv').config();  // Load environment variables from .env file
+
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -154,6 +156,12 @@ app.post('/api/payment/verify', async (req, res) => {
   } else {
     return res.status(400).json({ error: 'Payment verification failed' });
   }
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = app;
