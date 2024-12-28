@@ -1,140 +1,104 @@
-// Import required libraries
 const { createClient } = require('@supabase/supabase-js');
 const Razorpay = require('razorpay');
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
-// Initialize Supabase client with environment variables
-const supabase = createClient(
-  process.env.SUPABASE_URL,      // Supabase URL from Vercel environment variables
-  process.env.SUPABASE_ANON_KEY  // Supabase anon key from Vercel environment variables
-);
+const app = express();
+app.use(cors());  // Enable CORS
+app.use(bodyParser.json());  // Parse JSON body
 
-// Initialize Razorpay client with your Razorpay API key and secret
+// Supabase Configuration (replace with environment variables in Vercel)
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Razorpay Configuration (replace with environment variables in Vercel)
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_bk8fP9s1DQe1g9',   // Razorpay key ID
-  key_secret: 'ugllIfJZdHueJas3hWAaTy83',  // Razorpay secret key
+  key_id: process.env.RAZORPAY_KEY_ID, // Your Razorpay Key ID
+  key_secret: process.env.RAZORPAY_KEY_SECRET // Your Razorpay Key Secret
 });
 
-module.exports = async (req, res) => {
+// Sign-up Route
+app.post('/api/index', async (req, res) => {
+  const { action, email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
   try {
-    // Handle GET request for fetching user details (for role-based access)
-    if (req.method === 'GET') {
-      const { user_id } = req.query;
-
-      if (!user_id) {
-        return res.status(400).json({ error: 'User ID is required' });
-      }
-
-      // Fetch user data from Supabase
-      const { data, error } = await supabase
-        .from('users')   // Ensure your 'users' table exists in Supabase
-        .select('*')
-        .eq('id', user_id) // Query by user ID
-        .single();
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      // Check user role for content visibility (this is an example of attribute-centric logic)
-      if (data.subscription_status === 'paid') {
-        return res.status(200).json({ data, message: 'Paid user' });
-      } else {
-        return res.status(200).json({ data, message: 'Free user' });
-      }
-    }
-
-    // Handle POST request for user sign-up
-    if (req.method === 'POST' && req.body.action === 'signup') {
-      const { email, password } = req.body;
-
-      // Validate input
-      if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
-      }
-
-      // Sign up the user in Supabase
-      const { user, error } = await supabase.auth.signUp({
+    if (action === 'signup') {
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (error) {
-        return res.status(500).json({ error: error.message });
+        console.error('Sign-up Error:', error);
+        return res.status(500).json({ error: 'Sign-up failed. Please try again later.' });
       }
 
-      // Create user entry in your 'users' table if needed
-      const { data, error: dbError } = await supabase
-        .from('users')
-        .upsert([{ id: user.id, email: user.email, subscription_status: 'free' }]);
-
-      if (dbError) {
-        return res.status(500).json({ error: dbError.message });
-      }
-
-      return res.status(201).json({ message: 'User signed up successfully', user });
+      console.log('Sign-up Success:', data);
+      return res.status(200).json({ message: 'Sign-up successful. Please check your email to verify your account.' });
     }
 
-    // Handle POST request for user sign-in
-    if (req.method === 'POST' && req.body.action === 'signin') {
-      const { email, password } = req.body;
-
-      // Validate input
-      if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
-      }
-
-      // Sign in the user via Supabase Auth
-      const { user, error } = await supabase.auth.signIn({
+    if (action === 'signin') {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        return res.status(500).json({ error: error.message });
+        console.error('Sign-in Error:', error);
+        return res.status(500).json({ error: 'Sign-in failed. Please check your credentials.' });
       }
 
-      return res.status(200).json({ message: 'User signed in successfully', user });
+      console.log('Sign-in Success:', data);
+      return res.status(200).json({ message: 'Sign-in successful.' });
     }
 
-    // Handle POST request for Razorpay payment creation (Subscription)
-    if (req.method === 'POST' && req.body.action === 'payment') {
+    if (action === 'payment') {
+      // Process Razorpay Payment
       const { amount, currency, user_id } = req.body;
-
       if (!amount || !currency || !user_id) {
-        return res.status(400).json({ error: 'Amount, currency, and user ID are required' });
+        return res.status(400).json({ error: 'Amount, currency, and user_id are required.' });
       }
 
-      // Create a Razorpay order for subscription
-      const options = {
-        amount: amount * 100,  // Convert amount to paise (1 INR = 100 paise)
+      // Create Razorpay order
+      const orderOptions = {
+        amount: amount * 100, // Razorpay expects amount in the smallest currency unit (paise)
         currency: currency,
-        receipt: `order_${new Date().getTime()}`,
-        payment_capture: 1,
+        receipt: `receipt_${Math.random().toString(36).substring(7)}`,
       };
 
-      razorpay.orders.create(options, async (err, order) => {
+      razorpay.orders.create(orderOptions, async (err, order) => {
         if (err) {
-          return res.status(500).json({ error: err.message });
+          console.error('Razorpay Order Error:', err);
+          return res.status(500).json({ error: 'Payment initiation failed. Please try again later.' });
         }
 
-        // Update the user subscription status in Supabase (set as 'paid' after successful payment)
-        const { data, error } = await supabase
-          .from('users')
-          .update({ subscription_status: 'paid' })
-          .eq('id', user_id);
+        // Log Razorpay order creation success
+        console.log('Razorpay Order Created:', order);
 
-        if (error) {
-          return res.status(500).json({ error: error.message });
-        }
+        // Here you should save the order details in your database (e.g., Supabase) and update the user's subscription status.
 
-        return res.status(200).json({ message: 'Payment order created successfully', order });
+        return res.status(200).json({ message: 'Payment initiation successful.', order });
       });
     }
 
-    return res.status(405).json({ error: 'Method Not Allowed' });
-
-  } catch (err) {
-    console.error('Error with Supabase or Razorpay:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    // If no valid action is provided
+    return res.status(400).json({ error: 'Invalid action.' });
+  } catch (error) {
+    console.error('API Error:', error);
+    return res.status(500).json({ error: 'An error occurred. Please try again later.' });
   }
-};
+});
+
+// Server setup
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
+module.exports = app;
