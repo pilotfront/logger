@@ -1,0 +1,17 @@
+{
+  "name": "webflow-membership-system",
+  "version": "1.0.0",
+  "description": "Webflow membership system with authentication, payments, and content control",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.1.0",
+    "razorpay": "^2.5.4",
+    "jsonwebtoken": "^8.5.1",
+    "express": "^4.17.1"
+  }
+}
