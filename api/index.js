@@ -5,7 +5,20 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
-app.use(cors());  // Enable CORS
+
+// CORS Configuration: Allow only www.pilotfront.com
+const allowedOrigins = ['https://www.pilotfront.com'];
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+};
+
+app.use(cors(corsOptions));  // Enable CORS with restricted domains
 app.use(bodyParser.json());  // Parse JSON body
 
 // Supabase Configuration (replace with environment variables in Vercel)
@@ -80,8 +93,6 @@ app.post('/api/index', async (req, res) => {
 
         // Log Razorpay order creation success
         console.log('Razorpay Order Created:', order);
-
-        // Here you should save the order details in your database (e.g., Supabase) and update the user's subscription status.
 
         return res.status(200).json({ message: 'Payment initiation successful.', order });
       });
