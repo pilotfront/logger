@@ -1,143 +1,130 @@
-require('dotenv').config();  // Optional, if you're running locally and using .env file
-
 const express = require('express');
 const cors = require('cors');
+const bodyParser = require('body-parser');
+const crypto = require('crypto'); // For password hashing
+const jwt = require('jsonwebtoken'); // For JWT authentication
 const { createClient } = require('@supabase/supabase-js');
 const Razorpay = require('razorpay');
-const crypto = require('crypto');
+
+// Razorpay Configuration (Using your Razorpay keys)
+const razorpay = new Razorpay({
+  key_id: 'rzp_test_bk8fP9s1DQe1g9',  // Your Razorpay Key ID
+  key_secret: 'ugllIfJZdHueJas3hWAaTy83',  // Your Razorpay Key Secret
+});
+
+// Supabase Configuration
+const SUPABASE_URL = process.env.SUPABASE_URL || 'your_supabase_url';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your_supabase_service_role_key';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
 
-// Set up CORS to allow requests only from your Webflow domain
-app.use(cors({
-  origin: 'https://www.pilotfront.com',  // Replace with your Webflow domain
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
+// Middleware
+app.use(cors({ origin: '*' }));  // Replace '*' with your Webflow URL in production
+app.use(bodyParser.json());
 
-// Middleware to parse JSON request bodies
-app.use(express.json());
-
-// Ensure Supabase credentials are available in environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VERCEL_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.VERCEL_SUPABASE_KEY;
-const RAZORPAY_KEY_ID = 'rzp_test_bk8fP9s1DQe1g9';  // Your Razorpay key ID
-const RAZORPAY_KEY_SECRET = 'ugllIfJZdHueJas3hWAaTy83';  // Your Razorpay key secret
-
-if (!SUPABASE_URL || !SUPABASE_KEY || !RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-  console.error("Missing environment variables!");
-  process.exit(1);
+// Utility: Hash password
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Secret key for JWT signing
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Use a secure key
 
-// Initialize Razorpay client with your Razorpay credentials
-const razorpay = new Razorpay({
-  key_id: RAZORPAY_KEY_ID,
-  key_secret: RAZORPAY_KEY_SECRET
-});
+// Signup endpoint
+app.post('/signup', async (req, res) => {
+  const { email, password } = req.body;
 
-// POST endpoint for sign-up and payment handling
-app.post('/api/index', async (req, res) => {
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
   try {
-    const { action, email, password, paymentPlan } = req.body;
+    // Check if the email is already registered
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', email)
+      .single();
 
-    // Ensure email, password, and action are provided
-    if (!email || !password || !action) {
-      return res.status(400).json({ error: 'Email, password, and action are required.' });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email is already registered.' });
     }
 
-    // Sign up the user if action is 'signup'
-    if (action === 'signup') {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+    // Insert new user into the database
+    const hashedPassword = hashPassword(password);
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ email, password: hashedPassword }]);
 
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
+    if (error) throw error;
 
-      // After signing up, check the payment plan if provided
-      if (paymentPlan) {
-        const paymentSession = await createRazorpaySession(paymentPlan);
-
-        if (paymentSession.error) {
-          return res.status(400).json({ error: paymentSession.error });
-        }
-
-        // Store the Razorpay order ID in Supabase (so you can track the payment)
-        const { data: user, error: userError } = await supabase
-          .from('users')
-          .update({ razorpay_order_id: paymentSession.order.id })
-          .eq('email', email);
-
-        if (userError) {
-          return res.status(400).json({ error: userError.message });
-        }
-
-        return res.status(200).json({ message: 'Sign-up successful. Proceed with payment', paymentSession: paymentSession.order });
-      }
-
-      return res.status(200).json({ message: 'Sign-up successful', data });
-    }
-
-    // Handle login action if needed (not implemented in this example)
-    if (action === 'login') {
-      const { data, error } = await supabase.auth.signIn({ email, password });
-
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
-
-      return res.status(200).json({ message: 'Login successful', data });
-    }
-
-    return res.status(400).json({ error: 'Invalid action' });
-
+    res.status(201).json({ message: 'User registered successfully.' });
   } catch (error) {
-    console.error('Server Error:', error);
-    return res.status(500).json({ error: 'An error occurred. Please try again later.' });
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Failed to register user.' });
   }
 });
 
-// Razorpay payment session creation for selected plans
-async function createRazorpaySession(paymentPlan) {
+// Login endpoint
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
   try {
-    // Define the payment amount based on the selected plan
-    let amount;
-    if (paymentPlan === 'monthly') {
-      amount = 500;  // Amount in INR (500 paise = 5 INR)
-    } else if (paymentPlan === 'yearly') {
-      amount = 5000;  // Amount in INR
-    } else if (paymentPlan === 'one-time') {
-      amount = 1000;  // Amount in INR
-    } else {
-      return { error: 'Invalid payment plan selected' };
+    const hashedPassword = hashPassword(password);
+
+    // Check if the user exists with the correct password
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .eq('password', hashedPassword)
+      .single();
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    // Create Razorpay order for the selected plan
-    const options = {
-      amount: amount * 100,  // Amount is in paise (100 paise = 1 INR)
-      currency: 'INR',
-      receipt: `receipt_${Date.now()}`,
-      payment_capture: 1
-    };
+    // Generate a JWT token
+    const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: '1h' });
 
-    const order = await razorpay.orders.create(options);
-    console.log('Payment session created:', order);
+    // Send the token back to the client
+    res.status(200).json({ message: 'Login successful.', token });
 
-    // Return the Razorpay order to the frontend for payment
-    return { order };
   } catch (error) {
-    console.error('Error creating payment session:', error);
-    return { error: error.message };
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to login.' });
   }
-}
+});
 
-// Razorpay payment verification webhook
-app.post('/api/payment/verify', async (req, res) => {
+// Payment integration
+app.post('/payment', async (req, res) => {
+  const { amount, currency = 'INR', receipt } = req.body;
+
+  if (!amount || !receipt) {
+    return res.status(400).json({ error: 'Amount and receipt are required.' });
+  }
+
+  try {
+    // Create a Razorpay order
+    const order = await razorpay.orders.create({ amount, currency, receipt });
+    res.status(201).json(order);
+  } catch (error) {
+    console.error('Razorpay error:', error);
+    res.status(500).json({ error: 'Failed to create Razorpay order.' });
+  }
+});
+
+// Verify Razorpay payment signature
+app.post('/payment/verify', async (req, res) => {
   const { payment_id, order_id, signature } = req.body;
 
-  const generatedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET)
+  const generatedSignature = crypto.createHmac('sha256', razorpay.key_secret)
     .update(`${order_id}|${payment_id}`)
     .digest('hex');
 
@@ -158,10 +145,6 @@ app.post('/api/payment/verify', async (req, res) => {
   }
 });
 
-// Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
+// Export the app for Vercel
 module.exports = app;
+
