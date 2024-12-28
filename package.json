@@ -1,17 +1,21 @@
 {
-  "name": "webflow-membership-system",
+  "name": "vercel-backend",
   "version": "1.0.0",
-  "description": "Webflow membership system with authentication, payments, and content control",
+  "description": "Backend API for Webflow Sign-Up and Razorpay Integration",
   "main": "index.js",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "vercel build",
-    "deploy": "vercel --prod"
+    "start": "node index.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.1.0",
-    "razorpay": "^2.5.4",
-    "jsonwebtoken": "^8.5.1",
-    "express": "^4.17.1"
-  }
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@supabase/supabase-js": "^2.0.0",
+    "razorpay": "^2.8.0"
+  },
+  "engines": {
+    "node": "16.x"
+  },
+  "devDependencies": {},
+  "author": "",
+  "license": "ISC"
 }
