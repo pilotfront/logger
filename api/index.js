@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const crypto = require('crypto');
+const crypto = require('crypto'); // For password hashing
 const { createClient } = require('@supabase/supabase-js');
 const Razorpay = require('razorpay');
 
@@ -21,12 +21,11 @@ const app = express();
 
 // Middleware: CORS Configuration
 app.use(cors({
-  origin: ['https://www.pilotfront.com', 'https://logger-two-chi.vercel.app'], // Allow both Webflow and Vercel domains
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'], // Add Authorization header for JWT token
+  origin: 'https://www.pilotfront.com', // Allow Webflow domain only
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'], // Add Authorization if using JWT
 }));
 
-// Middleware
 app.use(bodyParser.json());
 
 // Utility: Hash password
