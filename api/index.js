@@ -1,15 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const crypto = require('crypto'); // For password hashing
-const jwt = require('jsonwebtoken'); // For JWT authentication
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const Razorpay = require('razorpay');
+require('dotenv').config();
 
 // Razorpay Configuration
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_V7dUXALM0XHJT4',
-  key_secret: 'bOh8WTflJaRLOnT6T2JKJj4k',
+  key_id: 'rzp_test_bk8fP9s1DQe1g9',
+  key_secret: 'ugllIfJZdHueJas3hWAaTy83',
 });
 
 // Supabase Configuration
@@ -21,16 +21,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const app = express();
 
 // Middleware
-app.use(cors({ origin: '*' })); // Replace '*' with your Webflow URL in production
+app.use(cors({ origin: '*' }));
 app.use(bodyParser.json());
 
 // Utility: Hash password
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
-
-// Secret key for JWT signing (you can set it in your environment variables)
-const JWT_SECRET = 'your_jwt_secret_key';  // Make sure to use a secure key
 
 // Signup endpoint
 app.post('/signup', async (req, res) => {
@@ -41,7 +38,6 @@ app.post('/signup', async (req, res) => {
   }
 
   try {
-    // Check if the email is already registered
     const { data: existingUser } = await supabase
       .from('users')
       .select('email')
@@ -52,7 +48,6 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email is already registered.' });
     }
 
-    // Insert new user into the database
     const hashedPassword = hashPassword(password);
     const { data, error } = await supabase
       .from('users')
@@ -77,8 +72,6 @@ app.post('/login', async (req, res) => {
 
   try {
     const hashedPassword = hashPassword(password);
-
-    // Check if the user exists with the correct password
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -90,19 +83,14 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    // Generate a JWT token
-    const token = jwt.sign({ email: user.email, id: user.id }, JWT_SECRET, { expiresIn: '1h' });
-
-    // Send the token back to the client
-    res.status(200).json({ message: 'Login successful.', token });
-
+    res.status(200).json({ message: 'Login successful.' });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Failed to login.' });
   }
 });
 
-// Payment integration
+// Razorpay Payment endpoint
 app.post('/payment', async (req, res) => {
   const { amount, currency = 'INR', receipt } = req.body;
 
