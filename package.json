@@ -1,21 +1,28 @@
 {
-  "name": "vercel-backend",
+  "name": "razorpay-supabase-integration",
   "version": "1.0.0",
-  "description": "Backend API for Webflow Sign-Up and Razorpay Integration",
+  "description": "Integration of Supabase authentication and Razorpay payment gateway.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "vercel dev",
+    "build": "vercel build"
   },
   "dependencies": {
     "express": "^4.18.2",
+    "razorpay": "^2.8.7",
     "cors": "^2.8.5",
-    "@supabase/supabase-js": "^2.0.0",
-    "razorpay": "^2.8.0"
+    "body-parser": "^1.20.2",
+    "crypto": "1.0.1",
+    "jsonwebtoken": "^8.5.1",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^29.2.0"
   },
   "engines": {
     "node": "16.x"
   },
-  "devDependencies": {},
-  "author": "",
-  "license": "ISC"
+  "author": "Your Name",
+  "license": "MIT"
 }
