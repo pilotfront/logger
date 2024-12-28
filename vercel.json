@@ -1,15 +1,28 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/**/*.{js,ts}": {
+      "maxDuration": 10,
+      "memory": 1024,
+      "regions": ["all"]
     }
-  ],
-  "routes": [
+  },
+  "headers": [
     {
-      "src": "/api/signup",
-      "dest": "/api/index.js"
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://www.pilotfront.com"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
     }
   ]
 }
