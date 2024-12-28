@@ -4,12 +4,11 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const Razorpay = require('razorpay');
-require('dotenv').config();
 
 // Razorpay Configuration
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_bk8fP9s1DQe1g9',
-  key_secret: 'ugllIfJZdHueJas3hWAaTy83',
+  key_id: 'rzp_test_V7dUXALM0XHJT4',
+  key_secret: 'bOh8WTflJaRLOnT6T2JKJj4k',
 });
 
 // Supabase Configuration
@@ -20,8 +19,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
 
+// Middleware: CORS Configuration
+app.use(cors({
+  origin: ['https://www.pilotfront.com', 'https://logger-two-chi.vercel.app'], // Allow both Webflow and Vercel domains
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'], // Add Authorization header for JWT token
+}));
+
 // Middleware
-app.use(cors({ origin: '*' }));
 app.use(bodyParser.json());
 
 // Utility: Hash password
@@ -38,6 +43,7 @@ app.post('/signup', async (req, res) => {
   }
 
   try {
+    // Check if the email is already registered
     const { data: existingUser } = await supabase
       .from('users')
       .select('email')
@@ -48,6 +54,7 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email is already registered.' });
     }
 
+    // Insert new user into the database
     const hashedPassword = hashPassword(password);
     const { data, error } = await supabase
       .from('users')
@@ -72,6 +79,8 @@ app.post('/login', async (req, res) => {
 
   try {
     const hashedPassword = hashPassword(password);
+
+    // Check if the user exists with the correct password
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -90,7 +99,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Razorpay Payment endpoint
+// Payment integration
 app.post('/payment', async (req, res) => {
   const { amount, currency = 'INR', receipt } = req.body;
 
