@@ -19,9 +19,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
 
-// Middleware: CORS Configuration
+// Middleware: CORS Configuration (allow all origins)
 app.use(cors({
-  origin: 'https://www.pilotfront.com', // Allow Webflow domain only
+  origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'], // Add Authorization if using JWT
 }));
